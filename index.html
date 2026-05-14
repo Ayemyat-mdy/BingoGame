@@ -1,57 +1,64 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <title>Bingo Host</title>
+    <title>Bingo Host - Control Panel</title>
     <script src="/socket.io/socket.io.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
-        body { background-color: #1a202c; color: white; text-align: center; font-family: sans-serif; }
-        .btn-draw { background: #00b4ff; padding: 15px 100px; border-radius: 10px; cursor: pointer; border: none; color: white; font-weight: bold; width: 80%; }
-        .btn-reset { background: #f56565; padding: 15px 100px; border-radius: 10px; cursor: pointer; border: none; color: white; font-weight: bold; width: 80%; margin-top: 10px; }
-        .qr-box { background: white; padding: 10px; display: inline-block; border-radius: 15px; margin-top: 20px; }
+        body { font-family: 'Segoe UI', sans-serif; background: #0f172a; color: white; min-height: 100vh; margin: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        .dashboard { background: rgba(255,255,255,0.05); padding: 40px; border-radius: 30px; border: 1px solid rgba(255,255,255,0.1); backdrop-filter: blur(10px); text-align: center; width: 450px; }
+        #currentNum { font-size: 11rem; font-weight: 800; color: #00d2ff; text-shadow: 0 0 30px rgba(0,210,255,0.4); margin: 20px 0; }
+        .btn { border: none; padding: 18px; border-radius: 15px; font-weight: bold; cursor: pointer; transition: 0.3s; width: 100%; margin-bottom: 10px; font-size: 1.1rem; }
+        .btn-draw { background: linear-gradient(to right, #00d2ff, #3a7bd5); color: white; }
+        .btn-music { background: #f1c40f; color: #000; width: 48%; }
+        .btn-reset { background: #ef4444; color: white; width: 48%; }
+        #qrcode { background: white; padding: 12px; border-radius: 15px; display: inline-block; margin-top: 20px; }
+        .badge { background: #3b82f6; padding: 8px 20px; border-radius: 50px; font-weight: 600; }
     </style>
 </head>
 <body>
-
-    <div style="background: #3182ce; display: inline-block; padding: 5px 20px; border-radius: 20px; margin-top: 20px;">
-        👥 Players: <span id="count">0</span>
+    <div class="dashboard">
+        <span class="badge">👥 Players: <span id="count">0</span></span>
+        <div id="currentNum">--</div>
+        <div id="winner-msg" style="display:none; color:#2ecc71; font-size:1.5rem; margin-bottom:10px;">🎉 Winner: <span id="wName"></span>!</div>
+        <button class="btn btn-draw" id="drawBtn" onclick="draw()">DRAW NUMBER</button>
+        <div style="display:flex; justify-content: space-between;">
+            <button class="btn btn-music" onclick="toggleMusic()">🎵 Music On/Off</button>
+            <button class="btn btn-reset" onclick="reset()">Reset Game</button>
+        </div>
+        <div id="qrcode"></div>
     </div>
 
-    <h1 id="displayNum" style="font-size: 80px; margin: 40px 0;">--</h1>
-
-    <button class="btn-draw" onclick="draw()">DRAW NUMBER</button><br>
-    <button class="btn-reset" onclick="location.reload()">Reset Game</button>
-
-    <div class="qr-box">
-        <img src="https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=http://localhost:3000/play.html" alt="QR">
-    </div>
-    <p>Scan to Join Game</p>
-
-    <audio id="bgMusic" src="background.mp3" loop></audio>
-    <audio id="winSound" src="win_sound.mp3"></audio>
+    <audio id="bgMusic" loop>
+        <source src="bgm.mp3" type="audio/mpeg">
+    </audio>
 
     <script>
         const socket = io();
-        const bgMusic = document.getElementById('bgMusic');
-        const winSound = document.getElementById('winSound');
+        const music = document.getElementById("bgMusic");
+        
+        const playUrl = window.location.origin + "/play.html";
+        new QRCode(document.getElementById("qrcode"), { text: playUrl, width: 150, height: 150 });
 
-        function draw() {
-            socket.emit('drawNumber');
-            if (bgMusic.paused) bgMusic.play(); // ပထမအကြိမ်နှိပ်မှ သီချင်းစဖွင့်ရန်
+        function draw() { socket.emit('callNumber'); }
+        function toggleMusic() { music.paused ? music.play() : music.pause(); }
+        function reset() {
+            socket.emit('resetGame');
+            document.getElementById('winner-msg').style.display = 'none';
+            document.getElementById('drawBtn').disabled = false;
+            document.getElementById('drawBtn').innerText = "DRAW NUMBER";
         }
 
-        socket.on('updatePlayerCount', (count) => {
-            document.getElementById('count').innerText = count;
+        socket.on('updatePlayerCount', (c) => document.getElementById('count').innerText = c);
+        socket.on('gameUpdate', (data) => {
+            const h = data.history || [];
+            document.getElementById('currentNum').innerText = h[h.length - 1] || "--";
         });
-
-        socket.on('numberDrawn', (num) => {
-            document.getElementById('displayNum').innerText = num;
-        });
-
-        socket.on('announceWinner', (name) => {
-            bgMusic.pause(); // နောက်ခံသီချင်းခေတ္တရပ်
-            winSound.play(); // Bingo Winner အသံဖွင့်
-            alert("Bingo! Winner is " + name);
+        socket.on('announceWinner', (data) => {
+            document.getElementById('wName').innerText = data.winnerName;
+            document.getElementById('winner-msg').style.display = 'block';
+            document.getElementById('drawBtn').disabled = true;
+            document.getElementById('drawBtn').innerText = "GAME OVER";
         });
     </script>
 </body>
