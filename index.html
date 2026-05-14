@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Bingo Host - Control Panel</title>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #0f172a; color: white; min-height: 100vh; margin: 0; display: flex; align-items: center; justify-content: center; }
+        .dashboard { background: rgba(255,255,255,0.05); padding: 40px; border-radius: 30px; border: 1px solid rgba(255,255,255,0.1); backdrop-filter: blur(10px); text-align: center; width: 450px; }
+        .badge { background: #3b82f6; padding: 8px 20px; border-radius: 50px; font-weight: 600; }
+        #currentNum { font-size: 10rem; font-weight: 800; color: #00d2ff; margin: 20px 0; line-height: 1; }
+        .btn { border: none; padding: 18px; border-radius: 15px; font-weight: bold; cursor: pointer; transition: 0.3s; width: 100%; margin-bottom: 10px; font-size: 1.1rem; }
+        .btn-draw { background: linear-gradient(to right, #00d2ff, #3a7bd5); color: white; }
+        .btn-draw:disabled { background: #475569; opacity: 0.6; }
+        .btn-reset { background: #ef4444; color: white; width: 100%; }
+        #qrcode { background: white; padding: 12px; border-radius: 15px; display: inline-block; margin-top: 20px; }
+        #winner-msg { font-size: 1.5rem; color: #2ecc71; margin-top: 15px; display: none; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="dashboard">
+        <span class="badge">👥 Players: <span id="count">0</span></span>
+        <div id="currentNum">--</div>
+        <div id="winner-msg">🎉 Winner: <span id="wName"></span>!</div>
+        
+        <button class="btn btn-draw" id="drawBtn" onclick="draw()">DRAW NUMBER</button>
+        <button class="btn btn-reset" onclick="reset()">Reset Game</button>
+        
+        <div id="qrcode"></div>
+        <p style="font-size: 0.8rem; color: #94a3b8;">Scan to Join Game</p>
+    </div>
+
+    <script>
+        const socket = io();
+        
+        // QR Code generation based on current URL
+        const playUrl = window.location.origin + "/play.html";
+        new QRCode(document.getElementById("qrcode"), { 
+            text: playUrl, 
+            width: 150, 
+            height: 150 
+        });
+
+        function draw() { socket.emit('callNumber'); }
+        function reset() { 
+            if(confirm("ဂိမ်းအသစ်ပြန်စမှာ သေချာပါသလား?")) {
+                socket.emit('resetGame');
+                document.getElementById('winner-msg').style.display='none';
+                document.getElementById('drawBtn').disabled = false;
+                document.getElementById('drawBtn').innerText = "DRAW NUMBER";
+                document.getElementById('currentNum').innerText = "--";
+            }
+        }
+
+        socket.on('updatePlayerCount', (c) => document.getElementById('count').innerText = c);
+        socket.on('gameUpdate', (data) => {
+            const h = data.history || [];
+            document.getElementById('currentNum').innerText = h[h.length - 1] || "--";
+        });
+        socket.on('announceWinner', (data) => {
+            document.getElementById('wName').innerText = data.winnerName;
+            document.getElementById('winner-msg').style.display = 'block';
+            document.getElementById('drawBtn').disabled = true;
+            document.getElementById('drawBtn').innerText = "GAME OVER";
+        });
+    </script>
+</body>
+</html>
