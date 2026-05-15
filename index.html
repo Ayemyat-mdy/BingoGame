@@ -5,127 +5,21 @@
     <script src="/socket.io/socket.io.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
     <style>
-        body { 
-            font-family: 'Segoe UI', sans-serif; 
-            background: #eeedeb; 
-            color: #1e293b; 
-            min-height: 100vh; 
-            margin: 0; 
-            display: flex; 
-            flex-direction: column; 
-            align-items: center; 
-            justify-content: center; 
-            overflow: hidden; 
-        }
-
-        .dashboard { 
-            background: rgba(0, 0, 0, 0.03); 
-            padding: 40px; 
-            border-radius: 30px; 
-            border: 1px solid rgba(0, 0, 0, 0.1); 
-            backdrop-filter: blur(10px); 
-            text-align: center; 
-            width: 450px; 
-            position: relative; 
-            box-shadow: 0 10px 25px rgba(0,0,0,0.05);
-        }
-
-        #currentNum { 
-            font-size: 11rem; 
-            font-weight: 800; 
-            color: #2563eb; 
-            text-shadow: 0 0 20px rgba(37, 99, 235, 0.2); 
-            margin: 10px 0; 
-            min-height: 250px; /* Increased to fit "Go!" text comfortably */
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .btn { 
-            border: none; 
-            padding: 18px; 
-            border-radius: 15px; 
-            font-weight: bold; 
-            cursor: pointer; 
-            transition: 0.3s; 
-            width: 100%; 
-            margin-bottom: 10px; 
-            font-size: 1.1rem; 
-        }
-
-        .btn-start { 
-            background: linear-gradient(to right, #2563eb, #3a7bd5); 
-            color: white; 
-            margin-top: 15px; 
-            display: block; 
-        }
-
-        .btn-start:hover { 
-            transform: scale(1.02); 
-            box-shadow: 0 5px 15px rgba(37, 99, 235, 0.3); 
-        }
-
-        .btn-start:disabled { 
-            background: #cbd5e1; 
-            color: #64748b; 
-            cursor: not-allowed; 
-            transform: none; 
-            box-shadow: none; 
-        }
-
+        body { font-family: 'Segoe UI', sans-serif; background: #eeedeb; color: #1e293b; min-height: 100vh; margin: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; overflow: hidden; }
+        .dashboard { background: rgba(0, 0, 0, 0.03); padding: 40px; border-radius: 30px; border: 1px solid rgba(0, 0, 0, 0.1); backdrop-filter: blur(10px); text-align: center; width: 450px; position: relative; box-shadow: 0 10px 25px rgba(0,0,0,0.05); }
+        #currentNum { font-size: 11rem; font-weight: 800; color: #2563eb; text-shadow: 0 0 20px rgba(37, 99, 235, 0.2); margin: 10px 0; min-height: 250px; display: flex; align-items: center; justify-content: center; transition: all 0.3s ease; }
+        .btn { border: none; padding: 18px; border-radius: 15px; font-weight: bold; cursor: pointer; transition: 0.3s; width: 100%; margin-bottom: 10px; font-size: 1.1rem; }
+        .btn-start { background: linear-gradient(to right, #2563eb, #3a7bd5); color: white; margin-top: 15px; }
+        .btn-start:disabled { background: #cbd5e1; color: #64748b; cursor: not-allowed; }
         .btn-music { background: #f1c40f; color: #000; width: 48%; }
-        .btn-music.active { background: #d4ac0d; box-shadow: inset 0 2px 5px rgba(0,0,0,0.2); }
+        .btn-music.active { background: #d4ac0d; }
         .btn-reset { background: #ef4444; color: white; width: 48%; }
-
-        #qrcode { 
-            background: white; 
-            padding: 12px; 
-            border-radius: 15px; 
-            display: inline-block; 
-            margin-top: 20px; 
-            border: 1px solid #ddd;
-        }
-
-        .badge { 
-            background: #3b82f6; 
-            color: white;
-            padding: 8px 20px; 
-            border-radius: 50px; 
-            font-weight: 600; 
-        }
-        
-        #timer-bar-container { 
-            width: 100%; 
-            height: 6px; 
-            background: rgba(0,0,0,0.1); 
-            border-radius: 10px; 
-            margin: 15px 0; 
-            overflow: hidden; 
-        }
-
-        #timer-bar { 
-            width: 0%; 
-            height: 100%; 
-            background: #2563eb; 
-            transition: width 1s linear; 
-        }
-
-        #winner-overlay {
-            display: none;
-            position: fixed;
-            top: 0; left: 0; width: 100%; height: 100%;
-            background: rgba(238, 237, 235, 0.98);
-            z-index: 100;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            animation: fadeIn 0.5s ease;
-        }
-
+        #qrcode { background: white; padding: 12px; border-radius: 15px; display: inline-block; margin-top: 20px; border: 1px solid #ddd; }
+        .badge { background: #3b82f6; color: white; padding: 8px 20px; border-radius: 50px; font-weight: 600; }
+        #timer-bar-container { width: 100%; height: 6px; background: rgba(0,0,0,0.1); border-radius: 10px; margin: 15px 0; overflow: hidden; }
+        #timer-bar { width: 0%; height: 100%; background: #2563eb; transition: width 1s linear; }
+        #winner-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(238, 237, 235, 0.98); z-index: 100; flex-direction: column; align-items: center; justify-content: center; animation: fadeIn 0.5s ease; }
         .trophy { font-size: 150px; margin-bottom: 20px; }
-        .congrats-text { font-size: 2.5rem; font-weight: bold; color: #1e293b; }
-        
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
     </style>
 </head>
@@ -133,33 +27,24 @@
 
     <div id="winner-overlay">
         <div class="trophy">🏆</div>
-        <div class="congrats-text">Congratulations <span id="modal-winner-name"></span>!</div>
+        <div class="congrats-text" style="font-size: 2.5rem; font-weight: bold;">Congratulations <span id="modal-winner-name"></span>!</div>
         <button class="btn btn-reset" style="width: 200px; margin-top: 30px;" onclick="reset()">Restart Game</button>
     </div>
 
     <div class="dashboard">
         <span class="badge">👥 Players: <span id="count">0</span></span>
-        
         <div id="currentNum">--</div>
-        
-        <div id="timer-bar-container">
-            <div id="timer-bar"></div>
-        </div>
+        <div id="timer-bar-container"><div id="timer-bar"></div></div>
         <div id="timer-text" style="font-size: 0.9rem; color: #64748b;">Waiting to start...</div>
-
         <button class="btn btn-start" id="startBtn" onclick="clickStartGame()">START GAME</button>
-
         <div style="display:flex; justify-content: space-between; margin-top: 20px;">
             <button class="btn btn-music" id="musicBtn" onclick="toggleMusic()">🎵 Music Off</button>
             <button class="btn btn-reset" onclick="reset()">Reset</button>
         </div>
-        
         <div id="qrcode"></div>
     </div>
 
-    <audio id="bgMusic" loop preload="auto">
-        <source src="MABA 10th Anniversary (Bingo Game).mp3" type="audio/mpeg">
-    </audio>
+    <audio id="bgMusic" loop><source src="MABA 10th Anniversary (Bingo Game).mp3" type="audio/mpeg"></audio>
 
     <script>
         const socket = io();
@@ -171,49 +56,36 @@
         const startBtn = document.getElementById("startBtn");
         const currentNumDisplay = document.getElementById('currentNum');
         
-        let drawInterval = null;
-        let timeLeft = 10;
-        let gameActive = false;
+        let drawInterval = null, timeLeft = 10, gameActive = false;
 
-        const playUrl = window.location.origin + "/play.html";
-        new QRCode(document.getElementById("qrcode"), { text: playUrl, width: 150, height: 150 });
+        new QRCode(document.getElementById("qrcode"), { text: window.location.origin + "/play.html", width: 120, height: 120 });
 
         function toggleMusic() {
             if (music.paused) {
-                music.play().then(() => {
-                    musicBtn.innerText = "🎵 Music On";
-                    musicBtn.classList.add('active');
-                }).catch(e => console.log("Audio play blocked"));
+                music.play().then(() => { musicBtn.innerText = "🎵 Music On"; musicBtn.classList.add('active'); }).catch(e => {});
             } else {
-                music.pause();
-                musicBtn.innerText = "🎵 Music Off";
-                musicBtn.classList.remove('active');
+                music.pause(); musicBtn.innerText = "🎵 Music Off"; musicBtn.classList.remove('active');
             }
         }
 
-        // Modified Countdown Function
         function clickStartGame() {
             if (gameActive) return;
-            
             gameActive = true;
             startBtn.disabled = true;
-            startBtn.innerText = "GET READY...";
-            
-            if(music.paused) { toggleMusic(); }
+            if(music.paused) toggleMusic();
 
-            let startCount = 5; 
-            currentNumDisplay.style.color = "#ef4444"; // Red color for countdown
+            let startCount = 5;
+            currentNumDisplay.style.color = "#ef4444"; 
             
             const countdownInterval = setInterval(() => {
                 if (startCount > 0) {
                     currentNumDisplay.innerText = startCount;
                 } else if (startCount === 0) {
                     currentNumDisplay.innerText = "Go!";
-                    currentNumDisplay.style.color = "#10b981"; // Green color for "Go!"
+                    currentNumDisplay.style.color = "#10b981"; 
                 } else {
-                    // Start the game after showing "Go!"
                     clearInterval(countdownInterval);
-                    currentNumDisplay.style.color = "#2563eb"; // Blue for bingo numbers
+                    currentNumDisplay.style.color = "#2563eb";
                     beginAutoBingo();
                 }
                 startCount--;
@@ -227,59 +99,37 @@
         }
 
         function startAutoDraw() {
-            stopAutoDraw(); 
             timeLeft = 10;
             updateTimerUI();
-            
             drawInterval = setInterval(() => {
                 timeLeft--;
                 updateTimerUI();
-
-                if (timeLeft <= 0) {
-                    socket.emit('callNumber');
-                    timeLeft = 10; 
-                }
+                if (timeLeft <= 0) { socket.emit('callNumber'); timeLeft = 10; }
             }, 1000);
         }
 
-        function stopAutoDraw() {
-            clearInterval(drawInterval);
-        }
-
         function updateTimerUI() {
-            const percentage = (timeLeft / 10) * 100;
-            timerBar.style.width = percentage + "%";
+            timerBar.style.width = (timeLeft / 10) * 100 + "%";
             timerText.innerText = `Next number in ${timeLeft}s`;
         }
 
         function reset() {
             socket.emit('resetGame');
-            stopAutoDraw();
-            
+            clearInterval(drawInterval);
             gameActive = false;
-            timeLeft = 10;
-            
             winnerOverlay.style.display = 'none';
             currentNumDisplay.innerText = "--";
-            currentNumDisplay.style.color = "#2563eb";
-            timerText.innerText = "Waiting to start...";
             timerBar.style.width = "0%";
-            
             startBtn.disabled = false;
             startBtn.innerText = "START GAME";
         }
 
         socket.on('updatePlayerCount', (c) => document.getElementById('count').innerText = c);
-        
         socket.on('gameUpdate', (data) => {
-            const h = data.history || [];
-            if (h.length > 0) {
-                currentNumDisplay.innerText = h[h.length - 1];
-            }
+            if (data.history.length > 0) currentNumDisplay.innerText = data.history[data.history.length - 1];
         });
-
         socket.on('announceWinner', (data) => {
-            stopAutoDraw();
+            clearInterval(drawInterval);
             document.getElementById('modal-winner-name').innerText = data.winnerName;
             winnerOverlay.style.display = 'flex';
         });
