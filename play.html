@@ -1,62 +1,130 @@
 <!DOCTYPE html>
 <html>
 <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Bingo Player</title>
     <script src="/socket.io/socket.io.js"></script>
     <style>
-        body { font-family: sans-serif; text-align: center; background: #f1f5f9; padding: 20px; }
-        .card { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; max-width: 350px; margin: 20px auto; background: white; padding: 15px; border-radius: 15px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
-        .cell { aspect-ratio: 1; display: flex; align-items: center; justify-content: center; background: #e2e8f0; border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 1.2rem; }
-        .cell.marked { background: #3b82f6; color: white; }
-        .cell.called { border: 3px solid #10b981; }
-        .btn-bingo { background: #ef4444; color: white; border: none; padding: 15px 30px; border-radius: 10px; font-weight: bold; font-size: 1.2rem; cursor: pointer; margin-top: 20px; }
+        body { font-family: 'Segoe UI', sans-serif; background: #0f172a; color: white; margin: 0; display: flex; flex-direction: column; align-items: center; }
+        #login-screen { position: fixed; inset: 0; background: #0f172a; z-index: 100; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        input { padding: 18px; width: 80%; border-radius: 15px; border: 2px solid #3b82f6; background: #1e293b; color: white; font-size: 1.1rem; margin-bottom: 20px; }
+        .btn-join { padding: 18px 50px; background: #3b82f6; border: none; color: white; border-radius: 15px; font-weight: 800; cursor: pointer; }
+        #game-screen { width: 100%; max-width: 400px; padding: 15px; display: none; }
+        .header { background: #1e293b; padding: 15px; border-radius: 20px; margin-bottom: 15px; text-align: center; border: 1px solid #334155; }
+        #lastNum { font-size: 3rem; color: #3b82f6; font-weight: 800; }
+        .grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 7px; }
+        .cell { aspect-ratio: 1; background: #fff; color: #000; display: flex; align-items: center; justify-content: center; font-weight: 800; border-radius: 10px; font-size: 1.2rem; }
+        .cell.marked { background: #22c55e !important; color: white; }
+        .cell.disabled { opacity: 0.3; }
+        .free-space { background: #3b82f6 !important; color: white; }
+        .timer-bg { background: #334155; height: 8px; border-radius: 10px; margin-top: 10px; overflow: hidden; }
+        #timer-bar { background: #ef4444; height: 100%; width: 100%; transition: width 0.1s linear; }
     </style>
 </head>
 <body>
-    <h2>Bingo Player</h2>
-    <input type="text" id="nameInput" placeholder="Enter your name" style="padding: 10px; border-radius: 5px; border: 1px solid #ccc;">
-    <div class="card" id="bingoCard"></div>
-    <button class="btn-bingo" onclick="claimBingo()">BINGO!</button>
+    <audio id="playerMusic" loop><source src="bgm.mp3" type="audio/mpeg"></audio>
+    <audio id="winSound"><source src="https://assets.mixkit.co/active_storage/sfx/2013/2013-preview.mp3" type="audio/mpeg"></audio>
+
+    <div id="login-screen">
+        <h1 style="color:#3b82f6">BINGO JOIN</h1>
+        <input type="text" id="pName" placeholder="Your Name" autocomplete="off">
+        <button class="btn-join" onclick="join()">JOIN GAME</button>
+    </div>
+
+    <div id="game-screen">
+        <div class="header">
+            <small>CALLED NUMBER</small>
+            <div id="lastNum">--</div>
+            <div class="timer-bg"><div id="timer-bar"></div></div>
+        </div>
+        <div class="grid" id="grid"></div>
+    </div>
 
     <script>
         const socket = io();
-        let history = [];
-        
-        function generateCard() {
-            const card = document.getElementById('bingoCard');
-            const ranges = [[1,15],[16,30],[31,45],[46,60],[61,75]];
-            for(let i=0; i<5; i++) {
-                let col = [];
-                while(col.length < 5) {
-                    let r = Math.floor(Math.random()*(ranges[i][1]-ranges[i][0]+1)) + ranges[i][0];
-                    if(!col.includes(r)) col.push(r);
+        let myName = "", lastCalled = null, timerInt;
+
+        function join() {
+            myName = document.getElementById('pName').value.trim();
+            if(!myName) return;
+
+            const m = document.getElementById('playerMusic');
+            m.volume = 0.2;
+            m.play();
+
+            socket.emit('registerPlayer', myName);
+            document.getElementById('login-screen').style.display = 'none';
+            document.getElementById('game-screen').style.display = 'block';
+            createCard();
+        }
+
+        function createCard() {
+            const grid = document.getElementById('grid');
+            let used = new Set();
+            for(let i=0; i<25; i++) {
+                const cell = document.createElement('div');
+                cell.className = 'cell';
+                if(i===12) {
+                    cell.innerText = "★";
+                    cell.classList.add('marked', 'free-space');
+                } else {
+                    let r; do { r = Math.floor(Math.random() * 75) + 1; } while(used.has(r));
+                    used.add(r); cell.innerText = r;
+                    cell.onclick = function() {
+                        if(parseInt(this.innerText) === lastCalled && !this.classList.contains('disabled')) {
+                            this.classList.add('marked');
+                            checkWin();
+                            clearInterval(timerInt);
+                            document.getElementById('timer-bar').style.width = "0%";
+                        }
+                    };
                 }
-                col.forEach((num, index) => {
-                    const div = document.createElement('div');
-                    div.className = 'cell';
-                    div.innerText = num;
-                    div.onclick = () => div.classList.toggle('marked');
-                    div.id = 'cell-' + num;
-                    card.appendChild(div);
-                });
+                grid.appendChild(cell);
             }
         }
 
         socket.on('gameUpdate', (data) => {
-            history = data.history;
-            document.querySelectorAll('.cell').forEach(cell => {
-                if(history.includes(parseInt(cell.innerText))) {
-                    cell.classList.add('called');
-                }
-            });
+            const h = data.history || [];
+            lastCalled = h[h.length - 1];
+            document.getElementById('lastNum').innerText = lastCalled || "--";
+            if(h.length === 0 && myName !== "") location.reload();
+            if(data.calledAt) startTimer(data.calledAt);
         });
 
-        function claimBingo() {
-            const name = document.getElementById('nameInput').value || 'Anonymous';
-            socket.emit('claimBingo', name);
+        function startTimer(start) {
+            clearInterval(timerInt);
+            document.querySelectorAll('.cell').forEach(c => c.classList.remove('disabled'));
+            timerInt = setInterval(() => {
+                const left = Math.max(0, 10000 - (Date.now() - start));
+                document.getElementById('timer-bar').style.width = (left/100) + "%";
+                if(left <= 0) {
+                    clearInterval(timerInt);
+                    document.querySelectorAll('.cell').forEach(c => {
+                        if(parseInt(c.innerText) === lastCalled && !c.classList.contains('marked')) c.classList.add('disabled');
+                    });
+                }
+            }, 100);
         }
 
-        generateCard();
+        function checkWin() {
+            const cells = document.querySelectorAll('.cell');
+            const m = Array.from(cells).map(c => c.classList.contains('marked'));
+            let win = false;
+            for(let i=0; i<5; i++) {
+                if(m.slice(i*5, i*5+5).every(v=>v) || [0,1,2,3,4].every(j=>m[i+j*5])) win = true;
+            }
+            if([0,6,12,18,24].every(i=>m[i]) || [4,8,12,16,20].every(i=>m[i])) win = true;
+            if(win) {
+                document.getElementById("winSound").play();
+                socket.emit('playerWin', { name: myName });
+                alert("BINGO! You Won!");
+            }
+        }
+
+        socket.on('announceWinner', (data) => {
+            clearInterval(timerInt);
+            alert("Game Over! Winner: " + data.winnerName);
+        });
     </script>
 </body>
 </html>
