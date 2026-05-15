@@ -36,6 +36,10 @@
             color: #2563eb; 
             text-shadow: 0 0 20px rgba(37, 99, 235, 0.2); 
             margin: 10px 0; 
+            min-height: 250px; /* Increased to fit "Go!" text comfortably */
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
 
         .btn { 
@@ -71,6 +75,7 @@
         }
 
         .btn-music { background: #f1c40f; color: #000; width: 48%; }
+        .btn-music.active { background: #d4ac0d; box-shadow: inset 0 2px 5px rgba(0,0,0,0.2); }
         .btn-reset { background: #ef4444; color: white; width: 48%; }
 
         #qrcode { 
@@ -115,11 +120,10 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            text-align: center;
             animation: fadeIn 0.5s ease;
         }
 
-        .trophy { font-size: 150px; margin-bottom: 20px; filter: drop-shadow(0 0 10px rgba(0,0,0,0.1)); }
+        .trophy { font-size: 150px; margin-bottom: 20px; }
         .congrats-text { font-size: 2.5rem; font-weight: bold; color: #1e293b; }
         
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
@@ -146,24 +150,26 @@
         <button class="btn btn-start" id="startBtn" onclick="clickStartGame()">START GAME</button>
 
         <div style="display:flex; justify-content: space-between; margin-top: 20px;">
-            <button class="btn btn-music" onclick="toggleMusic()">🎵 Music</button>
+            <button class="btn btn-music" id="musicBtn" onclick="toggleMusic()">🎵 Music Off</button>
             <button class="btn btn-reset" onclick="reset()">Reset</button>
         </div>
         
         <div id="qrcode"></div>
     </div>
 
-    <audio id="bgMusic" loop>
-        <source src="MABA 10th Anniversary (Bingo Game).mp3" type="audio/mpeg">
+    <audio id="bgMusic" loop preload="auto">
+        <source src="bgm.mp3" type="audio/mpeg">
     </audio>
 
     <script>
         const socket = io();
         const music = document.getElementById("bgMusic");
+        const musicBtn = document.getElementById("musicBtn");
         const timerBar = document.getElementById("timer-bar");
         const timerText = document.getElementById("timer-text");
         const winnerOverlay = document.getElementById("winner-overlay");
         const startBtn = document.getElementById("startBtn");
+        const currentNumDisplay = document.getElementById('currentNum');
         
         let drawInterval = null;
         let timeLeft = 10;
@@ -172,15 +178,51 @@
         const playUrl = window.location.origin + "/play.html";
         new QRCode(document.getElementById("qrcode"), { text: playUrl, width: 150, height: 150 });
 
+        function toggleMusic() {
+            if (music.paused) {
+                music.play().then(() => {
+                    musicBtn.innerText = "🎵 Music On";
+                    musicBtn.classList.add('active');
+                }).catch(e => console.log("Audio play blocked"));
+            } else {
+                music.pause();
+                musicBtn.innerText = "🎵 Music Off";
+                musicBtn.classList.remove('active');
+            }
+        }
+
+        // Modified Countdown Function
         function clickStartGame() {
             if (gameActive) return;
             
             gameActive = true;
             startBtn.disabled = true;
-            startBtn.innerText = "GAME IN PROGRESS";
-            timerText.innerText = "Next number in 10s";
+            startBtn.innerText = "GET READY...";
+            
+            if(music.paused) { toggleMusic(); }
 
-            socket.emit('callNumber');
+            let startCount = 5; 
+            currentNumDisplay.style.color = "#ef4444"; // Red color for countdown
+            
+            const countdownInterval = setInterval(() => {
+                if (startCount > 0) {
+                    currentNumDisplay.innerText = startCount;
+                } else if (startCount === 0) {
+                    currentNumDisplay.innerText = "Go!";
+                    currentNumDisplay.style.color = "#10b981"; // Green color for "Go!"
+                } else {
+                    // Start the game after showing "Go!"
+                    clearInterval(countdownInterval);
+                    currentNumDisplay.style.color = "#2563eb"; // Blue for bingo numbers
+                    beginAutoBingo();
+                }
+                startCount--;
+            }, 1000);
+        }
+
+        function beginAutoBingo() {
+            startBtn.innerText = "GAME IN PROGRESS";
+            socket.emit('callNumber'); 
             startAutoDraw();
         }
 
@@ -207,9 +249,8 @@
         function updateTimerUI() {
             const percentage = (timeLeft / 10) * 100;
             timerBar.style.width = percentage + "%";
+            timerText.innerText = `Next number in ${timeLeft}s`;
         }
-
-        function toggleMusic() { music.paused ? music.play() : music.pause(); }
 
         function reset() {
             socket.emit('resetGame');
@@ -219,7 +260,8 @@
             timeLeft = 10;
             
             winnerOverlay.style.display = 'none';
-            document.getElementById('currentNum').innerText = "--";
+            currentNumDisplay.innerText = "--";
+            currentNumDisplay.style.color = "#2563eb";
             timerText.innerText = "Waiting to start...";
             timerBar.style.width = "0%";
             
@@ -231,7 +273,9 @@
         
         socket.on('gameUpdate', (data) => {
             const h = data.history || [];
-            document.getElementById('currentNum').innerText = h[h.length - 1] || "--";
+            if (h.length > 0) {
+                currentNumDisplay.innerText = h[h.length - 1];
+            }
         });
 
         socket.on('announceWinner', (data) => {
