@@ -1,57 +1,50 @@
 const express = require('express');
-const http = require('http');
-const { Server } = require('socket.io');
+const app = express();
+const http = require('http').createServer(app);
+const io = require('socket.io')(http);
 const path = require('path');
 
-const app = express();
-const server = http.createServer(app);
-const io = new Server(server);
+let callHistory = [];
+let players = {};
+let isGameOver = false;
 
-app.use(express.static(path.join(__dirname)));
-
-let gameState = {
-    history: [],
-    availableNumbers: Array.from({ length: 75 }, (_, i) => i + 1),
-    players: 0
-};
+app.use(express.static(__dirname));
 
 io.on('connection', (socket) => {
-    gameState.players++;
-    io.emit('updatePlayerCount', gameState.players);
-    socket.emit('gameUpdate', gameState);
+    socket.emit('gameUpdate', { history: callHistory });
+    io.emit('updatePlayerCount', Object.keys(players).length);
 
-    // Host calls a new number
-    socket.on('callNumber', () => {
-        if (gameState.availableNumbers.length > 0) {
-            const randomIndex = Math.floor(Math.random() * gameState.availableNumbers.length);
-            const num = gameState.availableNumbers.splice(randomIndex, 1)[0];
-            gameState.history.push(num);
-            io.emit('gameUpdate', gameState);
-        }
-    });
-
-    // Player claims Bingo
-    socket.on('claimBingo', (playerName) => {
-        io.emit('announceWinner', { winnerName: playerName });
-    });
-
-    // Reset game
-    socket.on('resetGame', () => {
-        gameState = {
-            history: [],
-            availableNumbers: Array.from({ length: 75 }, (_, i) => i + 1),
-            players: gameState.players
-        };
-        io.emit('gameUpdate', gameState);
+    socket.on('registerPlayer', (name) => {
+        players[socket.id] = name;
+        io.emit('updatePlayerCount', Object.keys(players).length);
     });
 
     socket.on('disconnect', () => {
-        gameState.players--;
-        io.emit('updatePlayerCount', gameState.players);
+        if (players[socket.id]) {
+            delete players[socket.id];
+            io.emit('updatePlayerCount', Object.keys(players).length);
+        }
+    });
+
+    socket.on('callNumber', () => {
+        if (isGameOver || callHistory.length >= 75) return;
+        let num;
+        do { num = Math.floor(Math.random() * 75) + 1; } while (callHistory.includes(num));
+        callHistory.push(num);
+        io.emit('gameUpdate', { history: callHistory, calledAt: Date.now() });
+    });
+
+    socket.on('playerWin', (data) => {
+        isGameOver = true;
+        io.emit('announceWinner', { winnerName: data.name });
+    });
+
+    socket.on('resetGame', () => {
+        callHistory = [];
+        isGameOver = false;
+        io.emit('gameUpdate', { history: [], calledAt: null });
     });
 });
 
-const PORT = 3000;
-server.listen(PORT, () => {
-    console.log(`Bingo server running at http://localhost:${PORT}`);
-});
+const PORT = process.env.PORT || 3000;
+http.listen(PORT, '0.0.0.0', () => console.log(`Server is running on port ${PORT}!`));
